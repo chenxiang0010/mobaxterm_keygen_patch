@@ -1,0 +1,25 @@
+[package]
+name = "mobaxterm_keygen_patch"
+version = "1.0.0"
+edition = "2021"
+authors = ["chenxiang0010 <chenxiang0010@outlook.com>"]
+description = "生成MobaXterm授权文件"
+
+[dependencies]
+regex = "1.10.5"
+zip = { version = "2.1.3" }
+dialoguer = { version = "0.11.0" }
+console = { version = "0.15.8" }
+dialogue-macro = { version = "0.3.2" }
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true
+lto = true
+
+
+[[bin]]
+name = "MobaXterm_Keygen_Patch"
+path = "src/main.rs"
