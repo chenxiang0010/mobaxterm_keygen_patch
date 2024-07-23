@@ -58,17 +58,17 @@ fn variant_base64_dict() -> HashMap<usize, char> {
     dict
 }
 
-fn parser_version(version: &str) -> Result<Vec<&str>, &str> {
+fn parse_version(version: &str) -> Result<(&str, &str), &str> {
     let reg = Regex::new(r"^\d+\.\d+$").unwrap();
     if reg.is_match(version) {
-        let version_parts = version.split(".").collect();
-        Ok(version_parts)
+        let version_parts: Vec<&str> = version.split(".").collect();
+        Ok((version_parts[0], version_parts[1]))
     } else {
         Err("Invalid version format")
     }
 }
 
-fn parser_license_type(license_type: &str) -> i32 {
+fn parse_license_type(license_type: &str) -> i32 {
     let license_type = match license_type {
         "Professional" => LicenseType::Professional,
         "Educational" => LicenseType::Educational,
@@ -133,6 +133,18 @@ fn process_block_encode(
     block.into_bytes()
 }
 
+fn build_license_code(config: &Config) -> Result<Vec<u8>, Box<dyn Error>> {
+    let (major, minor) = parse_version(&config.version)?;
+    let license_type = parse_license_type(&config.license_type);
+    let license_string = format!(
+        "{}#{}|{}{}#{}#{}3{}6{}#{}#{}#{}#",
+        license_type, &config.username, major, minor, &config.count, major, minor, minor, 0, 0, 0
+    );
+    let encrypt_code = encrypt_decrypt_bytes(&mut 0x787, &license_string.into_bytes(), true);
+    let license_code = variant_base64_encode(encrypt_code);
+    Ok(license_code)
+}
+
 fn build(license: &[u8], save_path: &str) -> io::Result<()> {
     let file_name = if !save_path.is_empty() && Path::new(save_path).exists() {
         Path::new(save_path).join("Custom.mxtpro")
@@ -147,8 +159,7 @@ fn build(license: &[u8], save_path: &str) -> io::Result<()> {
 
     // 将 Pro.key 文件的内容读入一个 buffer 中
     let mut buffer = Vec::new();
-    let mut f = fs::File::open("Pro.key")?;
-    f.read_to_end(&mut buffer)?;
+    fs::File::open("Pro.key")?.read_to_end(&mut buffer)?;
 
     // 将 buffer 中的内容写入 zip 压缩文件
     zip_file.write_all(&buffer)?;
@@ -161,15 +172,7 @@ fn build(license: &[u8], save_path: &str) -> io::Result<()> {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let version_parts = parser_version(&config.version)?;
-    let [major, minor] = [&version_parts[0], &version_parts[1]];
-    let license_type = parser_license_type(&config.license_type);
-    let license_string = format!(
-        "{}#{}|{}{}#{}#{}3{}6{}#{}#{}#{}#",
-        license_type, &config.username, major, minor, &config.count, major, minor, minor, 0, 0, 0
-    );
-    let encrypt_code = encrypt_decrypt_bytes(&mut 0x787, &license_string.into_bytes(), true);
-    let license_code = variant_base64_encode(encrypt_code);
+    let license_code = build_license_code(&config)?;
     build(&license_code, &config.install_path)?;
     // 成功
     println!("{}", style("生成成功，请打开MobaXterm查看!").green());

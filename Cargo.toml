@@ -1,6 +1,6 @@
 [package]
 name = "mobaxterm_keygen_patch"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["chenxiang0010 <chenxiang0010@outlook.com>"]
 description = "生成MobaXterm授权文件"

@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "mobaxterm_keygen_patch"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "console",
  "dialogue-macro",
