@@ -1,6 +1,6 @@
 use std::process;
 
-use mobaxterm_keygen_patch::cmd::{Config, run};
+use mobaxterm_keygen_patch::cmd::{run, Config};
 
 fn main() {
     let config = Config::new().unwrap_or_else(|err| {

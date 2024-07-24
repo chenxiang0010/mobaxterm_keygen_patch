@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     error::Error,
-    fs, i32,
+    fs,
     io::{self, Read, Write},
     path::Path,
 };
@@ -9,7 +9,7 @@ use std::{
 use console::style;
 use dialogue_macro::Asker;
 use regex::Regex;
-use zip::{CompressionMethod, write::FileOptions, ZipWriter};
+use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 #[derive(Asker, Debug)]
 pub struct Config {
@@ -18,7 +18,8 @@ pub struct Config {
     #[input(prompt = "版本号")]
     version: String,
     #[select(
-        prompt = "license类别", options = ["Professional", "Educational", "Persional"],
+        prompt = "license类别", 
+        options = ["Professional", "Educational", "Persional"],
         default = 0
     )]
     license_type: String,
@@ -41,13 +42,6 @@ impl Config {
     }
 }
 
-#[derive(Debug)]
-enum LicenseType {
-    Professional = 1,
-    Educational = 3,
-    Persional = 4,
-}
-
 fn variant_base64_dict() -> HashMap<usize, char> {
     let variant_base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
     let mut dict = HashMap::new();
@@ -61,21 +55,20 @@ fn variant_base64_dict() -> HashMap<usize, char> {
 fn parse_version(version: &str) -> Result<(&str, &str), &str> {
     let reg = Regex::new(r"^\d+\.\d+$").unwrap();
     if reg.is_match(version) {
-        let version_parts: Vec<&str> = version.split(".").collect();
+        let version_parts: Vec<&str> = version.split('.').collect();
         Ok((version_parts[0], version_parts[1]))
     } else {
         Err("Invalid version format")
     }
 }
 
-fn parse_license_type(license_type: &str) -> i32 {
-    let license_type = match license_type {
-        "Professional" => LicenseType::Professional,
-        "Educational" => LicenseType::Educational,
-        "Persional" => LicenseType::Persional,
-        _ => LicenseType::Professional,
-    } as i32;
-    return license_type;
+fn parse_license_type(license_type: &str) -> u8 {
+    match license_type {
+        "Professional" => 1,
+        "Educational" => 3,
+        "Persional" => 4,
+        _ => 1,
+    }
 }
 
 fn encrypt_decrypt_bytes(key: &mut u16, bs: &[u8], encrypt: bool) -> Vec<u8> {
@@ -114,7 +107,7 @@ fn process_block_encode(
     start_index: usize,
     byte_count: usize,
     base64_dict: &HashMap<usize, char>,
-    bs: &Vec<u8>,
+    bs: &[u8],
 ) -> Vec<u8> {
     let coding_int = match byte_count {
         1 => i32::from_le_bytes([bs[start_index], 0, 0, 0]),
