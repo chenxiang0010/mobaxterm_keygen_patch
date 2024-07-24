@@ -72,7 +72,7 @@ fn parse_license_type(license_type: &str) -> i32 {
     let license_type = match license_type {
         "Professional" => LicenseType::Professional,
         "Educational" => LicenseType::Educational,
-        "Personal" => LicenseType::Persional,
+        "Persional" => LicenseType::Persional,
         _ => LicenseType::Professional,
     } as i32;
     return license_type;
