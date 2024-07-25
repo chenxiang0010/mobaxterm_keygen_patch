@@ -23,8 +23,8 @@ pub struct Config {
         default = 0
     )]
     license_type: String,
-    #[input(prompt = "license数量")]
-    count: u8,
+    #[input(prompt = "license数量", default = 1)]
+    count: usize,
     #[input(prompt = "MobaXterm安装路径", default = "")]
     install_path: String,
 }
