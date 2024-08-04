@@ -13,7 +13,7 @@ use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 #[derive(Asker, Debug)]
 pub struct Config {
-    #[input(prompt = "用户名")]
+    #[input(prompt = "用户名", with_default = true)]
     username: String,
     #[input(prompt = "版本号")]
     version: String,
@@ -32,7 +32,7 @@ pub struct Config {
 impl Config {
     pub fn new() -> Result<Config, Box<dyn Error>> {
         let config = Config::asker()
-            .username()
+            .username(whoami::username())
             .version()
             .license_type()
             .count()
