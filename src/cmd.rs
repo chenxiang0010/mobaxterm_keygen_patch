@@ -8,6 +8,7 @@ use std::{
 
 use console::style;
 use dialogue_macro::Asker;
+use duct::cmd;
 use regex::Regex;
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
@@ -25,7 +26,7 @@ pub struct Config {
     license_type: String,
     #[input(prompt = "license数量", default = 1)]
     count: usize,
-    #[input(prompt = "MobaXterm安装路径", default = "")]
+    #[input(prompt = "MobaXterm安装路径", with_default = true)]
     install_path: String,
 }
 
@@ -36,10 +37,22 @@ impl Config {
             .version()
             .license_type()
             .count()
-            .install_path()
+            .install_path(get_mobaxterm_install_path())
             .finish();
         Ok(config)
     }
+}
+
+fn get_mobaxterm_install_path() -> String {
+    cmd!("where", "mobaxterm.exe")
+        .read()
+        .ok()
+        .and_then(|output| {
+            Path::new(output.trim())
+                .parent()
+                .map(|p| p.to_str().unwrap_or_default().to_string())
+        })
+        .unwrap_or_default()
 }
 
 fn variant_base64_dict() -> HashMap<usize, char> {
