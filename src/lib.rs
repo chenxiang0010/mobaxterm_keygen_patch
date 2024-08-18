@@ -1,3 +1,3 @@
 mod cmd;
 
-pub use cmd::{run, Config};
+pub use cmd::run;

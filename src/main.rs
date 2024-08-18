@@ -1,14 +1,9 @@
 use std::process;
 
-use mobaxterm_keygen_patch::{run, Config};
+use mobaxterm_keygen_patch::run;
 
 fn main() {
-    let config = Config::new().unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {}", err);
-        process::exit(1);
-    });
-
-    if let Err(e) = run(config) {
+    if let Err(e) = run() {
         eprintln!("Application error: {}", e);
         process::exit(1);
     };

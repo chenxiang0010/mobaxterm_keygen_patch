@@ -13,7 +13,7 @@ use regex::Regex;
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 #[derive(Asker, Debug)]
-pub struct Config {
+struct Config {
     #[input(prompt = "用户名", with_default = true)]
     username: String,
     #[input(prompt = "版本号")]
@@ -22,7 +22,7 @@ pub struct Config {
         prompt = "license类别", 
         options = ["Professional", "Educational", "Personal"],
         default = 0
-    )]
+  )]
     license_type: String,
     #[input(prompt = "license数量", default = 1)]
     count: usize,
@@ -31,7 +31,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Result<Config, Box<dyn Error>> {
+    fn new() -> Result<Config, Box<dyn Error>> {
         let config = Config::asker()
             .username(whoami::username())
             .version()
@@ -177,7 +177,8 @@ fn build(license: &[u8], save_path: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+pub fn run() -> Result<(), Box<dyn Error>> {
+    let config = Config::new()?;
     let license_code = build_license_code(&config)?;
     build(&license_code, &config.install_path)?;
     // 成功
