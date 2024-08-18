@@ -20,7 +20,7 @@ pub struct Config {
     version: String,
     #[select(
         prompt = "license类别", 
-        options = ["Professional", "Educational", "Persional"],
+        options = ["Professional", "Educational", "Personal"],
         default = 0
     )]
     license_type: String,
@@ -79,7 +79,7 @@ fn parse_license_type(license_type: &str) -> u8 {
     match license_type {
         "Professional" => 1,
         "Educational" => 3,
-        "Persional" => 4,
+        "Personal" => 4,
         _ => 1,
     }
 }
