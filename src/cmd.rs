@@ -1,16 +1,17 @@
+use anyhow::{anyhow, Result};
+use console::style;
+use dialogue_macro::Asker;
+use regex::Regex;
 use std::{
     collections::HashMap,
     fs,
     io::{Read, Write},
     path::Path,
 };
-
-use anyhow::{anyhow, Result};
-
-use console::style;
-use dialogue_macro::Asker;
-use regex::Regex;
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
+
+const VARIANT_BASE64_TABLE: &str =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 #[derive(Asker, Debug)]
 struct Config {
@@ -44,10 +45,8 @@ impl Config {
 }
 
 fn variant_base64_dict() -> HashMap<usize, char> {
-    let variant_base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
     let mut dict = HashMap::new();
-
-    for (index, val) in variant_base64_table.chars().enumerate() {
+    for (index, val) in VARIANT_BASE64_TABLE.chars().enumerate() {
         dict.insert(index, val);
     }
     dict
@@ -72,35 +71,34 @@ fn parse_license_type(license_type: &str) -> u8 {
     }
 }
 
-fn encrypt_decrypt_bytes(key: &mut u16, bs: &[u8], encrypt: bool) -> Vec<u8> {
-    let mut result: Vec<u8> = Vec::with_capacity(bs.len());
-    for &b in bs {
-        result.push(b ^ ((*key >> 8) as u8));
+fn encrypt_decrypt_bytes(key: &mut u16, bytes: &[u8], encrypt: bool) -> Vec<u8> {
+    let mut result: Vec<u8> = Vec::with_capacity(bytes.len());
+    for &byte in bytes {
+        result.push(byte ^ ((*key >> 8) as u8));
         *key = if encrypt {
             (*result.last().unwrap() as u16 & *key) | 0x482D
         } else {
-            (b as u16 & *key) | 0x482D
+            (byte as u16 & *key) | 0x482D
         };
     }
     result
 }
 
-fn variant_base64_encode(bs: Vec<u8>) -> Vec<u8> {
+fn variant_base64_encode(bytes: Vec<u8>) -> Vec<u8> {
     let base64_dict = variant_base64_dict();
     let mut result: Vec<u8> = Vec::new();
-    let blocks_count = bs.len() / 3;
-    let leftover_bytes = bs.len() % 3;
+    let blocks_count = bytes.len() / 3;
+    let leftover_bytes = bytes.len() % 3;
 
     for i in 0..blocks_count {
-        let block = process_block_encode(i * 3, 3, &base64_dict, &bs);
+        let block = process_block_encode(i * 3, 3, &base64_dict, &bytes);
         result.extend_from_slice(&block);
     }
 
     if leftover_bytes > 0 {
-        let block = process_block_encode(blocks_count * 3, leftover_bytes, &base64_dict, &bs);
+        let block = process_block_encode(blocks_count * 3, leftover_bytes, &base64_dict, &bytes);
         result.extend_from_slice(&block);
     }
-
     result
 }
 
@@ -108,12 +106,17 @@ fn process_block_encode(
     start_index: usize,
     byte_count: usize,
     base64_dict: &HashMap<usize, char>,
-    bs: &[u8],
+    bytes: &[u8],
 ) -> Vec<u8> {
     let coding_int = match byte_count {
-        1 => i32::from_le_bytes([bs[start_index], 0, 0, 0]),
-        2 => i32::from_le_bytes([bs[start_index], bs[start_index + 1], 0, 0]),
-        _ => i32::from_le_bytes([bs[start_index], bs[start_index + 1], bs[start_index + 2], 0]),
+        1 => i32::from_le_bytes([bytes[start_index], 0, 0, 0]),
+        2 => i32::from_le_bytes([bytes[start_index], bytes[start_index + 1], 0, 0]),
+        _ => i32::from_le_bytes([
+            bytes[start_index],
+            bytes[start_index + 1],
+            bytes[start_index + 2],
+            0,
+        ]),
     };
     let step_count = match byte_count {
         3 => 4,
@@ -134,12 +137,12 @@ fn build_license_code(config: &Config) -> Result<Vec<u8>> {
         "{}#{}|{}{}#{}#{}3{}6{}#{}#{}#{}#",
         license_type, &config.username, major, minor, &config.count, major, minor, minor, 0, 0, 0
     );
-    let encrypt_code = encrypt_decrypt_bytes(&mut 0x787, &license_string.into_bytes(), true);
-    let license_code = variant_base64_encode(encrypt_code);
+    let encrypted_code = encrypt_decrypt_bytes(&mut 0x787, &license_string.into_bytes(), true);
+    let license_code = variant_base64_encode(encrypted_code);
     Ok(license_code)
 }
 
-fn build(license: &[u8], save_path: &str) -> Result<()> {
+fn build_zip(license: &[u8], save_path: &str) -> Result<()> {
     let file_name = if !save_path.is_empty() && Path::new(save_path).exists() {
         Path::new(save_path).join("Custom.mxtpro")
     } else {
@@ -151,16 +154,10 @@ fn build(license: &[u8], save_path: &str) -> Result<()> {
     let options = FileOptions::<()>::default().compression_method(CompressionMethod::Stored);
     zip_file.start_file("Pro.key", options)?;
 
-    // 将 Pro.key 文件的内容读入一个 buffer 中
     let mut buffer = Vec::new();
     fs::File::open("Pro.key")?.read_to_end(&mut buffer)?;
-
-    // 将 buffer 中的内容写入 zip 压缩文件
     zip_file.write_all(&buffer)?;
-
-    zip_file.finish()?; // 结束压缩文件的写入
-
-    // 删除 "Pro.key" 文件
+    zip_file.finish()?;
     fs::remove_file("Pro.key")?;
     Ok(())
 }
@@ -168,8 +165,7 @@ fn build(license: &[u8], save_path: &str) -> Result<()> {
 pub fn run() -> Result<()> {
     let config = Config::new()?;
     let license_code = build_license_code(&config)?;
-    build(&license_code, &config.install_path)?;
-    // 成功
+    build_zip(&license_code, &config.install_path)?;
     println!("{}", style("生成成功，请打开MobaXterm查看!").green());
     Ok(())
 }
