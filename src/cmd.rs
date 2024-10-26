@@ -1,14 +1,14 @@
 use std::{
     collections::HashMap,
-    error::Error,
     fs,
-    io::{self, Read, Write},
+    io::{Read, Write},
     path::Path,
 };
 
+use anyhow::{anyhow, Result};
+
 use console::style;
 use dialogue_macro::Asker;
-use duct::cmd;
 use regex::Regex;
 use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
@@ -26,33 +26,21 @@ struct Config {
     license_type: String,
     #[input(prompt = "license数量", default = 1)]
     count: usize,
-    #[input(prompt = "MobaXterm安装路径", with_default = true)]
+    #[input(prompt = "MobaXterm安装路径")]
     install_path: String,
 }
 
 impl Config {
-    fn new() -> Result<Config, Box<dyn Error>> {
+    fn new() -> Result<Config> {
         let config = Config::asker()
             .username(whoami::username())
             .version()
             .license_type()
             .count()
-            .install_path(get_mobaxterm_install_path())
+            .install_path()
             .finish();
         Ok(config)
     }
-}
-
-fn get_mobaxterm_install_path() -> String {
-    cmd!("where", "mobaxterm.exe")
-        .read()
-        .ok()
-        .and_then(|output| {
-            Path::new(output.trim())
-                .parent()
-                .map(|p| p.to_str().unwrap_or_default().to_string())
-        })
-        .unwrap_or_default()
 }
 
 fn variant_base64_dict() -> HashMap<usize, char> {
@@ -65,13 +53,13 @@ fn variant_base64_dict() -> HashMap<usize, char> {
     dict
 }
 
-fn parse_version(version: &str) -> Result<(&str, &str), &str> {
-    let reg = Regex::new(r"^\d+\.\d+$").unwrap();
+fn parse_version(version: &str) -> Result<(&str, &str)> {
+    let reg = Regex::new(r"^\d+\.\d+$")?;
     if reg.is_match(version) {
         let version_parts: Vec<&str> = version.split('.').collect();
         Ok((version_parts[0], version_parts[1]))
     } else {
-        Err("Invalid version format")
+        Err(anyhow!("Invalid version format"))
     }
 }
 
@@ -139,7 +127,7 @@ fn process_block_encode(
     block.into_bytes()
 }
 
-fn build_license_code(config: &Config) -> Result<Vec<u8>, Box<dyn Error>> {
+fn build_license_code(config: &Config) -> Result<Vec<u8>> {
     let (major, minor) = parse_version(&config.version)?;
     let license_type = parse_license_type(&config.license_type);
     let license_string = format!(
@@ -151,7 +139,7 @@ fn build_license_code(config: &Config) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(license_code)
 }
 
-fn build(license: &[u8], save_path: &str) -> io::Result<()> {
+fn build(license: &[u8], save_path: &str) -> Result<()> {
     let file_name = if !save_path.is_empty() && Path::new(save_path).exists() {
         Path::new(save_path).join("Custom.mxtpro")
     } else {
@@ -177,7 +165,7 @@ fn build(license: &[u8], save_path: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub fn run() -> Result<(), Box<dyn Error>> {
+pub fn run() -> Result<()> {
     let config = Config::new()?;
     let license_code = build_license_code(&config)?;
     build(&license_code, &config.install_path)?;
